@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 포토 블로그</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.6; }
+
+  .header { background: #fff; border-bottom: 1px solid #e5e5e7; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header h1 span { color: #0071e3; }
+  .header-btns { display: flex; gap: 8px; }
+  .header-btns button { padding: 8px 20px; border-radius: 8px; border: 1px solid #d2d2d7; background: #fff; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .2s; }
+  .header-btns button:hover { background: #f5f5f7; }
+  .header-btns button.active { background: #0071e3; color: #fff; border-color: #0071e3; }
+
+  .container { max-width: 800px; margin: 0 auto; padding: 24px 16px 100px; }
+  .card { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #0071e3; background: #e8f2ff; cursor: pointer; }
+
+  /* Title Input */
+  .title-input { width: 100%; padding: 14px 16px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 16px; outline: none; transition: border .2s; }
+  .title-input:focus { border-color: #0071e3; }
+
+  /* Upload Area */
+  .upload-zone { border: 2px dashed #d2d2d7; border-radius: 16px; padding: 48px 24px; text-align: center; cursor: pointer; transition: all .2s; position: relative; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: #0071e3; background: #f0f7ff; }
+  .upload-zone p { color: #86868b; font-size: 15px; }
+  .upload-zone p span { color: #0071e3; font-weight: 600; }
+  .upload-zone a { color: #0071e3; font-weight: 600; text-decoration: underline; }
+  .upload-zone small { color: #aeaeb2; display: block; margin-top: 8px; font-size: 13px; }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+  /* Photo Grid */
+  .photo-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+  .photo-item { position: relative; width: 110px; height: 110px; border-radius: 12px; overflow: hidden; flex-shrink: 0; cursor: grab; user-select: none; transition: transform .15s, box-shadow .15s; }
+  .photo-item.dragging { opacity: .4; transform: scale(.95); }
+  .photo-item.drag-over-item { transform: scale(1.05); box-shadow: 0 0 0 3px #0071e3; }
+  .photo-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .photo-num { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; background: #0071e3; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .photo-del { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; background: rgba(0,0,0,.5); color: #fff; border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; opacity: 0; transition: opacity .2s; }
+  .photo-item:hover .photo-del { opacity: 1; }
+  .photo-arrows { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; opacity: 0; transition: opacity .2s; }
+  .photo-item:hover .photo-arrows { opacity: 1; }
+  .photo-arrow { width: 24px; height: 22px; background: rgba(0,0,0,.55); color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+
+  /* Date */
+  .date-input { padding: 12px 16px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 15px; outline: none; width: 220px; margin-top: 12px; }
+  .date-input:focus { border-color: #0071e3; }
+  .date-display { color: #86868b; font-size: 14px; margin-top: 8px; }
+
+  /* Place Info */
+  .place-input { flex: 1; padding: 12px 16px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 14px; outline: none; }
+  .place-input:focus { border-color: #0071e3; }
+  .place-fields { display: flex; flex-direction: column; gap: 10px; }
+  .place-row { display: flex; align-items: center; gap: 10px; }
+  .place-row label { width: 110px; font-size: 13px; font-weight: 600; color: #555; flex-shrink: 0; }
+  .place-row input { flex: 1; padding: 10px 14px; border: 1px solid #e5e5e7; border-radius: 10px; font-size: 13px; outline: none; }
+  .place-row input:focus { border-color: #0071e3; }
+
+  /* Keywords */
+  .keyword-wrap { margin-top: 12px; }
+  .keyword-input-row { display: flex; gap: 8px; margin-top: 8px; }
+  .keyword-input-row input { flex: 1; padding: 12px 16px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 14px; outline: none; }
+  .keyword-input-row input:focus { border-color: #0071e3; }
+  .keyword-input-row button { padding: 12px 20px; border: 1px solid #d2d2d7; border-radius: 12px; background: #fff; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all .2s; }
+  .keyword-input-row button:hover { background: #f5f5f7; }
+  .keyword-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .keyword-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #f0f7ff; color: #0071e3; border-radius: 20px; font-size: 13px; font-weight: 500; }
+  .keyword-tag button { background: none; border: none; color: #0071e3; cursor: pointer; font-size: 14px; line-height: 1; }
+  .keyword-label { color: #86868b; font-size: 13px; margin-top: 16px; }
+
+  /* Tone */
+  .tone-wrap { margin-top: 16px; }
+  .tone-label { color: #1d1d1f; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .tone-options { display: flex; flex-wrap: wrap; gap: 10px; }
+  .tone-btn { padding: 10px 18px; border: 2px solid #e5e5e7; border-radius: 24px; background: #fff; font-size: 14px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px; }
+  .tone-btn:hover { border-color: #0071e3; }
+  .tone-btn.selected { border-color: #0071e3; background: #f0f7ff; color: #0071e3; font-weight: 600; }
+
+  /* Reference */
+  .ref-desc { color: #86868b; font-size: 13px; margin: 8px 0 12px; }
+  .ref-textarea { width: 100%; min-height: 56px; padding: 14px 16px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 14px; resize: vertical; outline: none; font-family: inherit; line-height: 1.6; }
+  .ref-textarea:focus { border-color: #0071e3; }
+  .add-ref-btn { width: 100%; padding: 14px; border: 1px solid #e5e5e7; border-radius: 12px; background: #fafafa; text-align: center; cursor: pointer; font-size: 14px; color: #86868b; margin-top: 10px; transition: all .2s; }
+  .add-ref-btn:hover { background: #f0f0f2; }
+
+  /* Generate */
+  .generate-btn { width: 100%; padding: 18px; border: none; border-radius: 14px; background: linear-gradient(135deg, #0071e3, #6c5ce7); color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,113,227,.3); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Result */
+  .result-area { display: none; }
+  .result-area.show { display: block; }
+  .result-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .result-actions button { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #d2d2d7; background: #fff; font-size: 14px; cursor: pointer; transition: all .2s; }
+  .result-actions button:hover { background: #f5f5f7; }
+  .result-actions button.primary { background: #0071e3; color: #fff; border-color: #0071e3; }
+
+  /* Blog Preview (Naver-style) */
+  .blog-preview { background: #fff; border-radius: 0; padding: 0; overflow: hidden; }
+  .blog-preview-header { text-align: center; padding: 40px 24px 20px; }
+  .blog-preview-title { font-size: 22px; font-weight: 700; line-height: 1.5; color: #1d1d1f; }
+  .blog-preview-date { font-size: 13px; color: #aeaeb2; margin-top: 10px; }
+  .blog-preview-divider { width: 40px; height: 2px; background: #1d1d1f; margin: 20px auto; }
+  .blog-preview-body { padding: 0; }
+  .blog-preview-section { text-align: center; margin-bottom: 8px; }
+  .blog-preview-section img { width: 100%; max-height: 500px; object-fit: cover; display: block; }
+  .blog-preview-text { padding: 20px 28px 24px; font-size: 15px; line-height: 2; color: #333; text-align: left; white-space: pre-wrap; word-break: keep-all; }
+  .blog-preview-text p { margin-bottom: 4px; }
+  .blog-preview-sep { display: flex; align-items: center; justify-content: center; padding: 16px 0; }
+  .blog-preview-sep span { display: inline-block; width: 4px; height: 4px; background: #ccc; border-radius: 50%; margin: 0 4px; }
+  .blog-preview-footer { text-align: center; padding: 24px; border-top: 1px solid #f0f0f0; }
+  .blog-preview-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .blog-preview-tag { font-size: 13px; color: #0071e3; background: #f0f7ff; padding: 4px 12px; border-radius: 16px; }
+  .blog-raw-toggle { text-align: center; margin-top: 12px; }
+  .blog-raw-toggle button { background: none; border: none; color: #86868b; font-size: 13px; cursor: pointer; text-decoration: underline; }
+  .blog-raw-content { display: none; white-space: pre-wrap; font-size: 14px; line-height: 1.8; padding: 20px; background: #fafafa; border-radius: 12px; margin-top: 12px; color: #333; max-height: 400px; overflow-y: auto; }
+  .blog-raw-content.show { display: block; }
+
+  /* Loading */
+  .loading { display: none; text-align: center; padding: 40px; }
+  .loading.show { display: block; }
+  .spinner { width: 40px; height: 40px; border: 3px solid #e5e5e7; border-top-color: #0071e3; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { color: #86868b; font-size: 14px; }
+
+  /* Settings Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 20px; padding: 32px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+  .modal h2 { font-size: 20px; margin-bottom: 20px; }
+  .modal label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 16px; }
+  .modal input, .modal select, .modal textarea { width: 100%; padding: 12px; border: 1px solid #e5e5e7; border-radius: 10px; font-size: 14px; outline: none; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: #0071e3; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 24px; }
+  .modal-btns button { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; cursor: pointer; border: 1px solid #d2d2d7; background: #fff; }
+  .modal-btns button.primary { background: #0071e3; color: #fff; border-color: #0071e3; }
+
+  /* Editor View */
+  .editor-view { display: none; }
+  .editor-view.show { display: block; }
+  .editor-textarea { width: 100%; min-height: 400px; padding: 20px; border: 1px solid #e5e5e7; border-radius: 12px; font-size: 15px; line-height: 1.8; resize: vertical; outline: none; font-family: inherit; }
+  .editor-textarea:focus { border-color: #0071e3; }
+
+  /* Tab */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  @media (max-width: 600px) {
+    .container { padding: 16px 12px 100px; }
+    .card { padding: 18px; }
+    .photo-item { width: 80px; height: 80px; }
+    .tone-options { gap: 6px; }
+    .tone-btn { padding: 8px 14px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>AI</span> 포토 블로그</h1>
+  <div class="header-btns">
+    <button id="settingsBtn" onclick="openSettings()">설정</button>
+    <button id="editorBtn" onclick="toggleEditor()">글 편집</button>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Input View -->
+  <div id="inputView" class="tab-content active">
+    <!-- Blog Title -->
+    <div class="card">
+      <input type="text" class="title-input" id="blogTitle" placeholder="블로그 제목을 입력하세요 (선택사항)">
+    </div>
+
+    <!-- Photo Upload -->
+    <div class="card">
+      <div class="upload-zone" id="uploadZone">
+        <p><span>클릭</span>하거나 사진을 <a>드래그</a>해서 올려주세요</p>
+        <small>여러 장 한번에 가능 · JPG, PNG, WebP</small>
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
+      </div>
+      <div id="photoSection" style="display:none;">
+        <div class="card-title" style="margin-top:20px;">업로드된 사진 (<span id="photoCount">0</span>장)</div>
+        <div class="photo-grid" id="photoGrid"></div>
+      </div>
+    </div>
+
+    <!-- Visit Date -->
+    <div class="card">
+      <div class="card-title">방문 날짜 <span class="badge">선택</span></div>
+      <input type="date" class="date-input" id="visitDate">
+      <div class="date-display" id="dateDisplay"></div>
+    </div>
+
+    <!-- Place Info -->
+    <div class="card">
+      <div class="card-title">장소 정보 <span class="badge">선택</span></div>
+      <div style="margin-top:12px;">
+        <div class="keyword-input-row">
+          <input type="text" id="placeName" placeholder="가게/장소 이름 (예: 속초 해녀횟집)" class="place-input">
+          <button onclick="searchPlace()" id="searchPlaceBtn">🔍 검색</button>
+          <button onclick="aiLookupPlace()" id="aiLookupBtn" style="background:#f0f7ff;color:#0071e3;border-color:#0071e3;">🤖 AI 자동 조회</button>
+        </div>
+        <div id="searchResult" style="display:none; margin-top:10px; padding:12px; background:#f0f7ff; border-radius:10px; font-size:13px; color:#333; line-height:1.7;"></div>
+      </div>
+      <div class="place-fields" id="placeFields" style="margin-top:14px;">
+        <div class="place-row">
+          <label>주소</label>
+          <input type="text" id="placeAddr" placeholder="예: 서울 강남구 역삼동 123-4">
+        </div>
+        <div class="place-row">
+          <label>대표 메뉴 / 가격</label>
+          <input type="text" id="placePrice" placeholder="예: 모듬회 소 45,000원 / 매운탕 10,000원">
+        </div>
+        <div class="place-row">
+          <label>영업시간</label>
+          <input type="text" id="placeHours" placeholder="예: 11:00 ~ 22:00 (월요일 휴무)">
+        </div>
+        <div class="place-row">
+          <label>주차</label>
+          <input type="text" id="placeParking" placeholder="예: 건물 지하 주차 가능 / 무료 2시간">
+        </div>
+        <div class="place-row">
+          <label>전화번호</label>
+          <input type="text" id="placePhone" placeholder="예: 02-1234-5678">
+        </div>
+        <div class="place-row">
+          <label>기타 정보</label>
+          <input type="text" id="placeEtc" placeholder="예: 예약 필수, 단체석 있음, 아이 동반 가능">
+        </div>
+      </div>
+    </div>
+
+    <!-- Blog Style -->
+    <div class="card">
+      <div class="card-title">블로그 스타일 설정 <span class="badge">선택</span></div>
+      <div class="keyword-wrap">
+        <div class="keyword-label">키워드 (엔터로 추가)</div>
+        <div class="keyword-input-row">
+          <input type="text" id="keywordInput" placeholder="예: 맛집, 여행, 일상, 카페...">
+          <button onclick="addKeyword()">추가</button>
+        </div>
+        <div class="keyword-tags" id="keywordTags"></div>
+      </div>
+      <div class="tone-wrap">
+        <div class="tone-label">글 톤</div>
+        <div class="tone-options" id="toneOptions">
+          <button class="tone-btn selected" data-tone="친근한" onclick="selectTone(this)">😊 친근한</button>
+          <button class="tone-btn" data-tone="전문적" onclick="selectTone(this)">🏛️ 전문적</button>
+          <button class="tone-btn" data-tone="일상적" onclick="selectTone(this)">☕ 일상적</button>
+          <button class="tone-btn" data-tone="감성적" onclick="selectTone(this)">🍃 감성적</button>
+          <button class="tone-btn" data-tone="유머러스" onclick="selectTone(this)">😄 유머러스</button>
+          <button class="tone-btn" data-tone="정보 전달" onclick="selectTone(this)">📋 정보 전달</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reference Blog -->
+    <div class="card">
+      <div class="card-title">참고 블로그 글 <span class="badge">선택</span></div>
+      <div class="ref-desc">기존에 작성한 블로그 글을 붙여넣으면 그 말투와 스타일을 참고해서 작성합니다.</div>
+      <div id="refContainer">
+        <textarea class="ref-textarea" id="refText0" placeholder="기존 블로그 글을 여기에 붙여넣어 주세요..."></textarea>
+      </div>
+      <div class="add-ref-btn" onclick="addReference()">+ 참고글 추가</div>
+    </div>
+
+    <!-- Generate Button -->
+    <div class="card">
+      <button class="generate-btn" id="generateBtn" onclick="generateBlog()">
+        ✨ AI 블로그 글 생성하기
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>AI가 블로그 글을 작성하고 있어요...</p>
+    </div>
+
+    <!-- Result -->
+    <div class="result-area" id="resultArea">
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div class="blog-preview" id="blogPreview"></div>
+      </div>
+      <div class="card">
+        <div class="blog-raw-toggle">
+          <button onclick="toggleRawText()">📄 원본 텍스트 보기/숨기기</button>
+        </div>
+        <div class="blog-raw-content" id="blogRawContent"></div>
+        <div class="result-actions">
+          <button onclick="copyForNaver()" class="primary">📝 네이버 블로그용 복사</button>
+          <button onclick="copyResult()">📋 텍스트 복사</button>
+          <button onclick="editResult()">✏️ 편집</button>
+          <button onclick="regenerate()">🔄 다시 생성</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor View -->
+  <div id="editorView" class="tab-content">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">글 편집</div>
+      <textarea class="editor-textarea" id="editorTextarea" placeholder="생성된 블로그 글이 여기에 표시됩니다. 자유롭게 편집하세요."></textarea>
+      <div class="result-actions" style="margin-top:16px;">
+        <button onclick="copyEditor()">📋 복사</button>
+        <button class="primary" onclick="saveEditor()">💾 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>⚙️ 설정</h2>
+    <label>AI 제공자</label>
+    <select id="aiProvider" onchange="updateModelOptions()">
+      <option value="anthropic" selected>Claude (Anthropic)</option>
+      <option value="openai">OpenAI</option>
+    </select>
+    <label>API 키</label>
+    <input type="password" id="apiKey" placeholder="API 키를 입력하세요">
+    <label>AI 모델</label>
+    <select id="aiModel">
+      <option value="claude-sonnet-4-20250514" selected>Claude Sonnet 4</option>
+      <option value="claude-haiku-4-20250414">Claude Haiku 4</option>
+      <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+    </select>
+    <label>글 길이</label>
+    <select id="blogLength">
+      <option value="short">짧게 (~500자)</option>
+      <option value="medium" selected>보통 (~1000자)</option>
+      <option value="long">길게 (~2000자)</option>
+    </select>
+    <label>기본 언어</label>
+    <select id="blogLang">
+      <option value="ko" selected>한국어</option>
+      <option value="en">English</option>
+    </select>
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e5e5e7;">
+      <label style="margin-top:0;">네이버 검색 API <span style="font-weight:400;color:#86868b;font-size:12px;">(장소 자동검색용, 선택)</span></label>
+      <input type="text" id="naverClientId" placeholder="Client ID" style="margin-bottom:6px;">
+      <input type="password" id="naverClientSecret" placeholder="Client Secret">
+      <div style="font-size:11px; color:#86868b; margin-top:6px; line-height:1.5;">
+        <a href="https://developers.naver.com/apps/#/register" target="_blank" style="color:#0071e3;">네이버 개발자센터</a>에서 무료 발급 가능<br>
+        애플리케이션 등록 → 검색(Local) API 선택
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button onclick="closeSettings()">취소</button>
+      <button class="primary" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // State
+  let photos = [];
+  let keywords = [];
+  let selectedTone = '친근한';
+  let refCount = 1;
+  let generatedText = '';
+
+  // Photo Upload
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        photos.push({ name: file.name, data: e.target.result });
+        renderPhotos();
+      };
+      reader.readAsDataURL(file);
+    });
+    fileInput.value = '';
+  }
+
+  let dragSrcIdx = null;
+
+  function renderPhotos() {
+    const grid = document.getElementById('photoGrid');
+    const section = document.getElementById('photoSection');
+    document.getElementById('photoCount').textContent = photos.length;
+    if (photos.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    grid.innerHTML = photos.map((p, i) => `
+      <div class="photo-item" draggable="true" data-idx="${i}">
+        <img src="${p.data}" alt="photo ${i+1}">
+        <div class="photo-num">${i+1}</div>
+        <button class="photo-del" onclick="event.stopPropagation();removePhoto(${i})">✕</button>
+        <div class="photo-arrows">
+          ${i > 0 ? `<button class="photo-arrow" onclick="event.stopPropagation();movePhoto(${i},-1)">◀</button>` : ''}
+          ${i < photos.length - 1 ? `<button class="photo-arrow" onclick="event.stopPropagation();movePhoto(${i},1)">▶</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    // Attach drag events
+    grid.querySelectorAll('.photo-item').forEach(item => {
+      item.addEventListener('dragstart', e => {
+        dragSrcIdx = parseInt(item.dataset.idx);
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        grid.querySelectorAll('.photo-item').forEach(el => el.classList.remove('drag-over-item'));
+        dragSrcIdx = null;
+      });
+      item.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        item.classList.add('drag-over-item');
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over-item');
+      });
+      item.addEventListener('drop', e => {
+        e.preventDefault();
+        item.classList.remove('drag-over-item');
+        const targetIdx = parseInt(item.dataset.idx);
+        if (dragSrcIdx !== null && dragSrcIdx !== targetIdx) {
+          const moved = photos.splice(dragSrcIdx, 1)[0];
+          photos.splice(targetIdx, 0, moved);
+          renderPhotos();
+        }
+      });
+    });
+  }
+
+  function movePhoto(idx, dir) {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= photos.length) return;
+    const temp = photos[idx];
+    photos[idx] = photos[newIdx];
+    photos[newIdx] = temp;
+    renderPhotos();
+  }
+
+  function removePhoto(idx) {
+    photos.splice(idx, 1);
+    renderPhotos();
+  }
+
+  // Date
+  const visitDate = document.getElementById('visitDate');
+  const today = new Date();
+  visitDate.value = today.toISOString().split('T')[0];
+  updateDateDisplay();
+
+  // Place search (Naver Local API)
+  async function searchPlace() {
+    const name = document.getElementById('placeName').value.trim();
+    if (!name) { showToast('장소 이름을 입력해주세요.'); return; }
+
+    const clientId = localStorage.getItem('naver_client_id');
+    const clientSecret = localStorage.getItem('naver_client_secret');
+    if (!clientId || !clientSecret) {
+      openSettings();
+      showToast('네이버 검색 API 키를 설정해주세요.');
+      return;
+    }
+
+    const btn = document.getElementById('searchPlaceBtn');
+    btn.textContent = '검색 중...';
+    btn.disabled = true;
+
+    try {
+      // Naver Local Search API (CORS proxy needed for browser)
+      const proxyUrl = 'https://corsproxy.io/?';
+      const apiUrl = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(name)}&display=1`;
+
+      const resp = await fetch(proxyUrl + encodeURIComponent(apiUrl), {
+        headers: {
+          'X-Naver-Client-Id': clientId,
+          'X-Naver-Client-Secret': clientSecret
+        }
+      });
+      const data = await resp.json();
+
+      if (data.items && data.items.length > 0) {
+        const item = data.items[0];
+        const cleanTitle = item.title.replace(/<[^>]*>/g, '');
+        const addr = item.roadAddress || item.address || '';
+        const tel = item.telephone || '';
+        const category = item.category || '';
+
+        // Auto-fill fields
+        if (addr) document.getElementById('placeAddr').value = addr;
+        if (tel) document.getElementById('placePhone').value = tel;
+
+        // Show search result
+        const resultDiv = document.getElementById('searchResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <strong>📍 ${cleanTitle}</strong><br>
+          ${category ? '분류: ' + category + '<br>' : ''}
+          ${addr ? '주소: ' + addr + '<br>' : ''}
+          ${tel ? '전화: ' + tel + '<br>' : ''}
+          <span style="color:#86868b; font-size:11px;">* 가격, 주차, 영업시간은 🤖 AI 자동 조회 버튼으로 자동 입력할 수 있어요.</span>
+        `;
+        showToast('장소 정보를 찾았습니다!');
+      } else {
+        showToast('검색 결과가 없습니다. 이름을 다시 확인해주세요.');
+      }
+    } catch (err) {
+      // CORS proxy 실패 시 안내
+      showToast('검색 실패 — 직접 정보를 입력해주세요.');
+      console.error(err);
+    } finally {
+      btn.textContent = '🔍 검색';
+      btn.disabled = false;
+    }
+  }
+
+  // AI-powered place info lookup
+  async function aiLookupPlace() {
+    const name = document.getElementById('placeName').value.trim();
+    if (!name) { showToast('장소 이름을 입력해주세요.'); return; }
+
+    const apiKey = localStorage.getItem('blog_api_key');
+    if (!apiKey) { openSettings(); showToast('먼저 AI API 키를 설정해주세요.'); return; }
+
+    const clientId = localStorage.getItem('naver_client_id');
+    const clientSecret = localStorage.getItem('naver_client_secret');
+    if (!clientId || !clientSecret) {
+      openSettings();
+      showToast('네이버 검색 API 키를 설정해주세요. (블로그 검색에 필요)');
+      return;
+    }
+
+    const btn = document.getElementById('aiLookupBtn');
+    btn.textContent = '🤖 조회 중...';
+    btn.disabled = true;
+
+    try {
+      // Step 1: Search Naver Local API for basic info
+      const proxyUrl = 'https://corsproxy.io/?';
+      const localUrl = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(name)}&display=1`;
+      const localResp = await fetch(proxyUrl + encodeURIComponent(localUrl), {
+        headers: { 'X-Naver-Client-Id': clientId, 'X-Naver-Client-Secret': clientSecret }
+      });
+      const localData = await localResp.json();
+
+      let localInfo = '';
+      if (localData.items && localData.items.length > 0) {
+        const item = localData.items[0];
+        const cleanTitle = item.title.replace(/<[^>]*>/g, '');
+        const addr = item.roadAddress || item.address || '';
+        const tel = item.telephone || '';
+        const category = item.category || '';
+        if (addr) document.getElementById('placeAddr').value = addr;
+        if (tel) document.getElementById('placePhone').value = tel;
+        localInfo = `장소명: ${cleanTitle}, 주소: ${addr}, 전화: ${tel}, 분류: ${category}`;
+      }
+
+      // Step 2: Search Naver Blog API for blog posts about this place
+      const blogUrl = `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(name + ' 가격 주차 영업시간')}&display=5&sort=sim`;
+      const blogResp = await fetch(proxyUrl + encodeURIComponent(blogUrl), {
+        headers: { 'X-Naver-Client-Id': clientId, 'X-Naver-Client-Secret': clientSecret }
+      });
+      const blogData = await blogResp.json();
+
+      let blogExcerpts = '';
+      if (blogData.items && blogData.items.length > 0) {
+        blogExcerpts = blogData.items.map((item, i) => {
+          const title = item.title.replace(/<[^>]*>/g, '');
+          const desc = item.description.replace(/<[^>]*>/g, '');
+          return `[블로그${i+1}] ${title}\n${desc}`;
+        }).join('\n\n');
+      }
+
+      if (!blogExcerpts && !localInfo) {
+        showToast('검색 결과가 없습니다. 장소 이름을 다시 확인해주세요.');
+        return;
+      }
+
+      // Step 3: Ask AI to extract structured info
+      const provider = localStorage.getItem('blog_provider') || 'anthropic';
+      const model = localStorage.getItem('blog_model') || (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+
+      const aiPrompt = `다음은 "${name}" 장소에 대한 검색 결과입니다. 이 정보에서 아래 항목들을 추출해주세요.
+
+${localInfo ? '기본 정보:\n' + localInfo + '\n\n' : ''}${blogExcerpts ? '블로그 검색 결과:\n' + blogExcerpts : ''}
+
+다음 항목을 JSON 형식으로만 응답해주세요 (다른 텍스트 없이 JSON만):
+{
+  "price": "대표 메뉴와 가격 (예: 모듬회 소 45,000원 / 매운탕 10,000원). 없으면 빈 문자열",
+  "hours": "영업시간 (예: 11:00 ~ 22:00, 월요일 휴무). 없으면 빈 문자열",
+  "parking": "주차 정보 (예: 건물 지하 주차 가능). 없으면 빈 문자열"
+}
+
+주의사항:
+- 확인되지 않는 정보는 빈 문자열("")로 남겨주세요.
+- 추측하지 말고, 검색 결과에 명시된 정보만 사용하세요.
+- 반드시 유효한 JSON만 출력하세요.`;
+
+      let aiResult;
+      if (provider === 'anthropic') {
+        aiResult = await callClaude(apiKey, model, aiPrompt);
+      } else {
+        aiResult = await callOpenAI(apiKey, model, aiPrompt);
+      }
+
+      // Parse AI response
+      const jsonMatch = aiResult.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const info = JSON.parse(jsonMatch[0]);
+        if (info.price) document.getElementById('placePrice').value = info.price;
+        if (info.hours) document.getElementById('placeHours').value = info.hours;
+        if (info.parking) document.getElementById('placeParking').value = info.parking;
+
+        // Show result summary
+        const resultDiv = document.getElementById('searchResult');
+        resultDiv.style.display = 'block';
+        let summary = `<strong>🤖 AI 자동 조회 결과</strong><br>`;
+        if (localInfo) summary += `📍 ${localInfo.split(',')[0]}<br>`;
+        if (info.price) summary += `💰 가격: ${info.price}<br>`;
+        if (info.hours) summary += `🕐 영업시간: ${info.hours}<br>`;
+        if (info.parking) summary += `🅿️ 주차: ${info.parking}<br>`;
+        if (!info.price && !info.hours && !info.parking) {
+          summary += `<span style="color:#e67e22;">블로그 검색에서 상세 정보를 찾지 못했습니다. 직접 입력해주세요.</span><br>`;
+        }
+        summary += `<span style="color:#86868b; font-size:11px;">* 블로그 ${blogData.items ? blogData.items.length : 0}개 글 분석 결과입니다. 정확하지 않을 수 있으니 확인 후 수정해주세요.</span>`;
+        resultDiv.innerHTML = summary;
+
+        showToast('AI 조회 완료! 결과를 확인해주세요.');
+      } else {
+        showToast('AI 응답을 파싱할 수 없습니다. 직접 입력해주세요.');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('AI 조회 실패: ' + err.message);
+    } finally {
+      btn.textContent = '🤖 AI 자동 조회';
+      btn.disabled = false;
+    }
+  }
+
+  visitDate.addEventListener('change', updateDateDisplay);
+  function updateDateDisplay() {
+    const d = new Date(visitDate.value + 'T00:00:00');
+    if (isNaN(d)) { document.getElementById('dateDisplay').textContent = ''; return; }
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    document.getElementById('dateDisplay').textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+  }
+
+  // Keywords — 한글 IME 조합 중복 방지
+  let isComposing = false;
+  const keywordInputEl = document.getElementById('keywordInput');
+  keywordInputEl.addEventListener('compositionstart', () => { isComposing = true; });
+  keywordInputEl.addEventListener('compositionend', e => {
+    isComposing = false;
+    // compositionend 후 Enter로 추가
+  });
+  keywordInputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (isComposing) return; // 한글 조합 중이면 무시
+      addKeyword();
+    }
+  });
+
+  function addKeyword() {
+    const input = document.getElementById('keywordInput');
+    const val = input.value.trim();
+    if (!val || keywords.includes(val)) { input.value = ''; return; }
+    keywords.push(val);
+    input.value = '';
+    renderKeywords();
+  }
+
+  function removeKeyword(idx) {
+    keywords.splice(idx, 1);
+    renderKeywords();
+  }
+
+  function renderKeywords() {
+    document.getElementById('keywordTags').innerHTML = keywords.map((k, i) => `
+      <span class="keyword-tag">${k} <button onclick="removeKeyword(${i})">✕</button></span>
+    `).join('');
+  }
+
+  // Tone
+  function selectTone(el) {
+    document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedTone = el.dataset.tone;
+  }
+
+  // Reference
+  function addReference() {
+    const container = document.getElementById('refContainer');
+    const ta = document.createElement('textarea');
+    ta.className = 'ref-textarea';
+    ta.id = `refText${refCount}`;
+    ta.placeholder = '참고 블로그 글을 여기에 붙여넣어 주세요...';
+    ta.style.marginTop = '10px';
+    container.appendChild(ta);
+    refCount++;
+  }
+
+  // Model options per provider
+  function updateModelOptions() {
+    const provider = document.getElementById('aiProvider').value;
+    const modelSelect = document.getElementById('aiModel');
+    const apiKeyInput = document.getElementById('apiKey');
+    if (provider === 'anthropic') {
+      modelSelect.innerHTML = `
+        <option value="claude-sonnet-4-20250514" selected>Claude Sonnet 4</option>
+        <option value="claude-haiku-4-20250414">Claude Haiku 4</option>
+        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+      `;
+      apiKeyInput.placeholder = 'Anthropic API 키를 입력하세요 (sk-ant-...)';
+    } else {
+      modelSelect.innerHTML = `
+        <option value="gpt-4o">GPT-4o</option>
+        <option value="gpt-4o-mini" selected>GPT-4o Mini</option>
+        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+      `;
+      apiKeyInput.placeholder = 'OpenAI API 키를 입력하세요 (sk-...)';
+    }
+    // Restore saved model if matching provider
+    const savedModel = localStorage.getItem('blog_model');
+    if (savedModel) {
+      const opt = modelSelect.querySelector(`option[value="${savedModel}"]`);
+      if (opt) opt.selected = true;
+    }
+  }
+
+  // Settings
+  function openSettings() { document.getElementById('settingsModal').classList.add('show'); }
+  function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
+  function saveSettings() {
+    const key = document.getElementById('apiKey').value;
+    if (key) localStorage.setItem('blog_api_key', key);
+    localStorage.setItem('blog_provider', document.getElementById('aiProvider').value);
+    localStorage.setItem('blog_model', document.getElementById('aiModel').value);
+    localStorage.setItem('blog_length', document.getElementById('blogLength').value);
+    localStorage.setItem('blog_lang', document.getElementById('blogLang').value);
+    const nId = document.getElementById('naverClientId').value;
+    const nSec = document.getElementById('naverClientSecret').value;
+    if (nId) localStorage.setItem('naver_client_id', nId);
+    if (nSec) localStorage.setItem('naver_client_secret', nSec);
+    closeSettings();
+    showToast('설정이 저장되었습니다.');
+  }
+
+  // Load settings
+  (function loadSettings() {
+    const provider = localStorage.getItem('blog_provider');
+    if (provider) document.getElementById('aiProvider').value = provider;
+    updateModelOptions();
+    const key = localStorage.getItem('blog_api_key');
+    if (key) document.getElementById('apiKey').value = key;
+    const model = localStorage.getItem('blog_model');
+    if (model) {
+      const opt = document.getElementById('aiModel').querySelector(`option[value="${model}"]`);
+      if (opt) opt.selected = true;
+    }
+    const len = localStorage.getItem('blog_length');
+    if (len) document.getElementById('blogLength').value = len;
+    const lang = localStorage.getItem('blog_lang');
+    if (lang) document.getElementById('blogLang').value = lang;
+    const nId = localStorage.getItem('naver_client_id');
+    if (nId) document.getElementById('naverClientId').value = nId;
+    const nSec = localStorage.getItem('naver_client_secret');
+    if (nSec) document.getElementById('naverClientSecret').value = nSec;
+  })();
+
+  // Editor Toggle
+  function toggleEditor() {
+    const inputView = document.getElementById('inputView');
+    const editorView = document.getElementById('editorView');
+    const btn = document.getElementById('editorBtn');
+    if (editorView.classList.contains('active')) {
+      editorView.classList.remove('active');
+      inputView.classList.add('active');
+      btn.classList.remove('active');
+    } else {
+      inputView.classList.remove('active');
+      editorView.classList.add('active');
+      btn.classList.add('active');
+      document.getElementById('editorTextarea').value = generatedText;
+    }
+  }
+
+  // Generate Blog
+  async function generateBlog() {
+    const apiKey = localStorage.getItem('blog_api_key');
+    if (!apiKey) { openSettings(); showToast('먼저 API 키를 설정해주세요.'); return; }
+
+    const provider = localStorage.getItem('blog_provider') || 'anthropic';
+    const title = document.getElementById('blogTitle').value;
+    const date = visitDate.value;
+    const model = localStorage.getItem('blog_model') || (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+    const length = localStorage.getItem('blog_length') || 'medium';
+    const lang = localStorage.getItem('blog_lang') || 'ko';
+
+    // Collect references
+    let refs = [];
+    for (let i = 0; i < refCount; i++) {
+      const el = document.getElementById(`refText${i}`);
+      if (el && el.value.trim()) refs.push(el.value.trim());
+    }
+
+    const lengthMap = { short: '약 500자', medium: '약 1000자', long: '약 2000자' };
+
+    let prompt = `당신은 전문 네이버 블로그 작가입니다. 다음 조건에 맞춰 블로그 글을 작성해 주세요.
+
+중요한 작성 규칙:
+- 마크다운 문법(#, **, -, > 등)을 절대 사용하지 마세요.
+- 제목은 첫 줄에 한 줄로 써주세요.
+- 소제목은 별도 줄에 일반 텍스트로 써주세요.
+- 단락 구분은 빈 줄 두 개로 해주세요.
+- 글머리 기호 대신 자연스러운 문장으로 작성하세요.
+- 네이버 블로그에 바로 붙여넣기 할 수 있는 순수 텍스트로 작성하세요.
+
+`;
+    if (title) prompt += `제목: ${title}\n`;
+    prompt += `방문 날짜: ${date}\n`;
+    prompt += `글 톤: ${selectedTone}\n`;
+    prompt += `글 길이: ${lengthMap[length]}\n`;
+    if (keywords.length) prompt += `키워드: ${keywords.join(', ')}\n`;
+    if (photos.length) prompt += `업로드된 사진: ${photos.length}장 (사진이 들어갈 위치를 [사진1], [사진2] 등으로 표시해 주세요)\n`;
+
+    // Place info
+    const placeName = document.getElementById('placeName').value.trim();
+    const placeAddr = document.getElementById('placeAddr').value.trim();
+    const placePrice = document.getElementById('placePrice').value.trim();
+    const placeHours = document.getElementById('placeHours').value.trim();
+    const placeParking = document.getElementById('placeParking').value.trim();
+    const placePhone = document.getElementById('placePhone').value.trim();
+    const placeEtc = document.getElementById('placeEtc').value.trim();
+
+    const hasPlaceInfo = placeName || placeAddr || placePrice || placeHours || placeParking || placePhone || placeEtc;
+    if (hasPlaceInfo) {
+      prompt += `\n장소 정보:\n`;
+      if (placeName) prompt += `- 가게/장소 이름: ${placeName}\n`;
+      if (placeAddr) prompt += `- 주소: ${placeAddr}\n`;
+      if (placePrice) prompt += `- 대표 메뉴/가격: ${placePrice}\n`;
+      if (placeHours) prompt += `- 영업시간: ${placeHours}\n`;
+      if (placeParking) prompt += `- 주차 정보: ${placeParking}\n`;
+      if (placePhone) prompt += `- 전화번호: ${placePhone}\n`;
+      if (placeEtc) prompt += `- 기타: ${placeEtc}\n`;
+      prompt += `\n위 장소 정보를 블로그 글 말미에 보기 좋게 정리해서 넣어주세요. 가격 정보는 표 형태가 아닌 자연스러운 문장으로, 주차/영업시간 등 실용 정보도 자연스럽게 포함해주세요.\n`;
+    }
+
+    if (refs.length) {
+      prompt += `\n참고 글 스타일:\n`;
+      refs.forEach((r, i) => prompt += `--- 참고글 ${i+1} ---\n${r.substring(0, 500)}\n`);
+      prompt += `\n위 참고글의 말투와 스타일을 참고해서 작성해 주세요.\n`;
+    }
+    if (lang === 'en') prompt += `\nPlease write in English.\n`;
+
+    // Show loading
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('resultArea').classList.remove('show');
+
+    try {
+      let resultText;
+
+      if (provider === 'anthropic') {
+        resultText = await callClaude(apiKey, model, prompt);
+      } else {
+        resultText = await callOpenAI(apiKey, model, prompt);
+      }
+
+      generatedText = resultText;
+      renderBlogPreview(generatedText);
+      document.getElementById('blogRawContent').textContent = generatedText;
+      document.getElementById('resultArea').classList.add('show');
+      document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      showToast('오류: ' + err.message);
+    } finally {
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('loading').classList.remove('show');
+    }
+  }
+
+  // Claude (Anthropic) API
+  async function callClaude(apiKey, model, prompt) {
+    // Build content with images
+    let content = [];
+    if (photos.length > 0) {
+      photos.slice(0, 5).forEach(p => {
+        const match = p.data.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (match) {
+          content.push({
+            type: 'image',
+            source: { type: 'base64', media_type: match[1], data: match[2] }
+          });
+        }
+      });
+    }
+    content.push({ type: 'text', text: prompt });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4000,
+        messages: [{ role: 'user', content }]
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.content.map(c => c.text).join('');
+  }
+
+  // OpenAI API
+  async function callOpenAI(apiKey, model, prompt) {
+    const messages = [{ role: 'user', content: prompt }];
+
+    if (photos.length > 0 && (model === 'gpt-4o' || model === 'gpt-4o-mini')) {
+      messages[0] = {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          ...photos.slice(0, 5).map(p => ({
+            type: 'image_url',
+            image_url: { url: p.data, detail: 'low' }
+          }))
+        ]
+      };
+    }
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages, max_tokens: 4000, temperature: 0.8 })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.choices[0].message.content;
+  }
+
+  // Render blog preview (Naver-style)
+  function renderBlogPreview(text) {
+    const preview = document.getElementById('blogPreview');
+    const title = document.getElementById('blogTitle').value;
+    const date = visitDate.value;
+    const d = new Date(date + 'T00:00:00');
+    const days = ['일','월','화','수','목','금','토'];
+    const dateStr = !isNaN(d) ? `${d.getFullYear()}. ${d.getMonth()+1}. ${d.getDate()}. ${days[d.getDay()]}요일` : '';
+
+    // Parse text into paragraphs
+    const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 0);
+
+    // Extract title from first line if it looks like a title (starts with # or is short)
+    let blogTitle = title;
+    let startIdx = 0;
+    if (!blogTitle && paragraphs.length > 0) {
+      const first = paragraphs[0].replace(/^#+\s*/, '');
+      if (first.length < 60) {
+        blogTitle = first;
+        startIdx = 1;
+      }
+    }
+
+    // Distribute photos evenly among text sections
+    const textBlocks = paragraphs.slice(startIdx);
+    const photoSlots = [];
+    if (photos.length > 0 && textBlocks.length > 0) {
+      const step = Math.max(1, Math.floor(textBlocks.length / photos.length));
+      for (let i = 0; i < photos.length; i++) {
+        photoSlots.push(Math.min(i * step, textBlocks.length - 1));
+      }
+    }
+
+    let html = '';
+
+    // Header
+    html += `<div class="blog-preview-header">`;
+    if (blogTitle) html += `<div class="blog-preview-title">${escapeHtml(blogTitle.replace(/^#+\s*/, ''))}</div>`;
+    if (dateStr) html += `<div class="blog-preview-date">${dateStr}</div>`;
+    html += `<div class="blog-preview-divider"></div>`;
+    html += `</div>`;
+
+    // Body: interleave photos and text
+    html += `<div class="blog-preview-body">`;
+    let photoIdx = 0;
+    textBlocks.forEach((block, i) => {
+      // Insert photo before this text block if scheduled
+      if (photoIdx < photos.length && photoSlots.includes(i) && photoSlots.indexOf(i) === photoIdx) {
+        html += `<div class="blog-preview-section"><img src="${photos[photoIdx].data}" alt="photo ${photoIdx+1}"></div>`;
+        photoIdx++;
+      }
+      // Clean up markdown headers
+      const cleaned = block.replace(/^#+\s*/gm, '').replace(/\*\*/g, '');
+      html += `<div class="blog-preview-text">${escapeHtml(cleaned)}</div>`;
+
+      // Dot separator between sections (not after last)
+      if (i < textBlocks.length - 1) {
+        html += `<div class="blog-preview-sep"><span></span><span></span><span></span></div>`;
+      }
+    });
+
+    // If there are remaining photos, append at the end
+    while (photoIdx < photos.length) {
+      html += `<div class="blog-preview-section"><img src="${photos[photoIdx].data}" alt="photo ${photoIdx+1}"></div>`;
+      photoIdx++;
+    }
+    html += `</div>`;
+
+    // Footer with tags
+    if (keywords.length > 0) {
+      html += `<div class="blog-preview-footer"><div class="blog-preview-tags">`;
+      keywords.forEach(k => { html += `<span class="blog-preview-tag">#${escapeHtml(k)}</span>`; });
+      html += `</div></div>`;
+    }
+
+    preview.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function toggleRawText() {
+    document.getElementById('blogRawContent').classList.toggle('show');
+  }
+
+  // 네이버 블로그용 서식 복사 (리치 텍스트)
+  function copyForNaver() {
+    const preview = document.getElementById('blogPreview');
+    // Build clean HTML for Naver paste
+    let html = '';
+    preview.querySelectorAll('.blog-preview-header, .blog-preview-body > *').forEach(el => {
+      if (el.classList.contains('blog-preview-header')) {
+        const titleEl = el.querySelector('.blog-preview-title');
+        if (titleEl) html += `<p style="text-align:center;font-size:20px;"><b>${titleEl.textContent}</b></p><br>`;
+      } else if (el.classList.contains('blog-preview-section')) {
+        // Photo placeholder — user inserts photos manually in Naver
+        html += `<p style="text-align:center;color:#999;">[사진]</p>`;
+      } else if (el.classList.contains('blog-preview-text')) {
+        const lines = el.textContent.split('\n');
+        lines.forEach(line => {
+          const trimmed = line.trim();
+          if (trimmed) html += `<p>${trimmed}</p>`;
+        });
+        html += '<br>';
+      } else if (el.classList.contains('blog-preview-sep')) {
+        html += `<p style="text-align:center;">···</p>`;
+      }
+    });
+    // Tags
+    if (keywords.length > 0) {
+      html += `<br><p>${keywords.map(k => '#' + k).join(' ')}</p>`;
+    }
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const plainBlob = new Blob([generatedText], { type: 'text/plain' });
+    navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': blob,
+        'text/plain': plainBlob
+      })
+    ]).then(() => {
+      showToast('네이버 블로그에 붙여넣기 하세요! (Ctrl+V)');
+    }).catch(() => {
+      // Fallback
+      navigator.clipboard.writeText(generatedText);
+      showToast('텍스트로 복사되었습니다.');
+    });
+  }
+
+  function copyResult() {
+    navigator.clipboard.writeText(generatedText);
+    showToast('클립보드에 복사되었습니다!');
+  }
+
+  function editResult() {
+    document.getElementById('editorTextarea').value = generatedText;
+    toggleEditor();
+  }
+
+  function regenerate() { generateBlog(); }
+
+  function copyEditor() {
+    navigator.clipboard.writeText(document.getElementById('editorTextarea').value);
+    showToast('클립보드에 복사되었습니다!');
+  }
+
+  function saveEditor() {
+    generatedText = document.getElementById('editorTextarea').value;
+    document.getElementById('resultContent').textContent = generatedText;
+    showToast('저장되었습니다!');
+  }
+
+  // Toast
+  function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.textContent = msg;
+    Object.assign(toast.style, {
+      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+      padding: '12px 24px', background: '#1d1d1f', color: '#fff', borderRadius: '12px',
+      fontSize: '14px', zIndex: '999', boxShadow: '0 4px 12px rgba(0,0,0,.2)',
+      animation: 'fadeIn .3s'
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .3s'; setTimeout(() => toast.remove(), 300); }, 2500);
+  }
+
+  // Click outside modal
+  document.getElementById('settingsModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('settingsModal')) closeSettings();
+  });
+</script>
+</body>
+</html>
